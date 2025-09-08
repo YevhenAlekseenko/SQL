@@ -1,0 +1,69 @@
+import pandas as pd
+import numpy as np
+import seaborn as sns
+
+applications = pd.read_csv("Downloads/applications(2.0).csv")
+industries = pd.read_csv("Downloads/industries(2.0).csv")
+applications.head()
+industries.info()
+
+#-Прибери дублікати applicant_id
+#-В полі 'External Rating' заповни відсутні значення нулями
+#-В полі 'Education level' заповни відсутні значення текстом “Середня”
+applications_unique = applications.drop_duplicates(subset = 'applicant_id')
+applications_unique['External Rating'] = applications_unique['External Rating'].fillna(0)
+applications_unique['Education level'] = applications_unique['Education level'].fillna('Середня')
+
+applications_unique.head()
+#2. Додай до цього DataFrame дані з файлу industries.csv, а саме, рейтинги індустрій.
+df = pd.merge(applications_unique, industries,  on = 'Industry', how='left')
+
+df.head()
+#3. Розрахуй рейтинг заявки за наступними умовами:
+
+#Рейтинг має бути числом від 0 до 100
+#Рейтинг - сума оцінок заявки по 6 критеріям.
+#Рейтинг дорівнює нулю, якщо відсутнє значення 'Amount' або якщо 'External Rating' дорівнює нулю.
+
+#З чого складається рейтинг:
+
+#Якщо вік заявника між 35 та 55, до рейтингу додається 20 балів
+#Якщо заявка була подана не у вихідні, до рейтингу додається 20 балів
+#Якщо заявника одружений, до рейтингу додається 20 балів
+#Якщо заявника знаходиться в Києві чи області, до рейтингу додається 10 балів
+#Значення 'Score' з таблиці industries.csv також додається до заявки (і складає від 0 до 20 балів)
+#Якщо 'External Rating' більше чи дорівнює 7, до рейтингу додається 20 балів
+#Якщо 'External Rating' менше чи дорівнює 2, з рейтингу віднімається 20 балів
+df['Applied at'] = pd.to_datetime(df['Applied at'], format='mixed')
+df['weekday'] = df['Applied at'].dt.weekday
+
+df['age_points'] = ((df['Age'] >= 35) & (df['Age'] <= 55)) * 20
+df['weekend_points'] = (df['weekday'] < 5) * 20
+df['married_points'] = (df['Marital status'].str.lower() == "одружений") * 20
+df['kyiv_points'] = df['Location'].str.lower().str.contains("київ") * 10
+df['industry_points'] = df['Score'].fillna(0)
+df['external_good'] = (df['External Rating'] >= 7) * 20
+df['external_bad'] = (df['External Rating'] <= 2) * -20
+
+df['Final Rating'] = (df['age_points'] + df['weekend_points'] + df['married_points'] + df['kyiv_points'] + df['industry_points'] + df['external_good'] + df['external_bad'])
+
+df.loc[df['Amount'].isna() | (df['External Rating'] == 0), 'Final Rating'] = 0
+df['Final Rating'] = df['Final Rating'].clip(lower=0, upper=100)
+
+df.head()
+
+#4. В результуючій таблиці залиш лише заявки з рейтингом більше нуля, ці заявки вважатимуться прийнятими.
+accepted_applications = df[df['Final Rating'] > 0].copy()
+
+accepted_applications.head()
+#5. Дані з результуючої таблиці згрупуй за тижнем подачі заявки, та виведи середній рейтинг прийнятих заявок у кожен тиждень.
+accepted_applications['Applied at'] = pd.to_datetime(accepted_applications['Applied at'], format = 'mixed')
+
+accepted_applications['Year'] = accepted_applications['Applied at'].dt.isocalendar().year
+accepted_applications['Week'] = accepted_applications['Applied at'].dt.isocalendar().week
+
+weekly_avg_rating = accepted_applications.groupby(['Year', 'Week'])['Final Rating'].mean().reset_index()
+
+weekly_avg_rating.head()
+
+
