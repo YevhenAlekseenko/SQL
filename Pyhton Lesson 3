@@ -1,0 +1,106 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+df = pd.read_csv('Downloads/facebook_ads_data (2.0).csv')
+
+df.describe(include = 'all')
+df
+# 1. Зроби групування даних по дням та для згрупованих даних побудуй два графіки:
+
+# Графік з щоденною сумою витрат на рекламу в 2021 році;
+# Графік з щоденним ROMI в 2021 році. Бонусне міні-завдання: застосуй метод rolling() щоб відобразити рухоме середнє витрат та ROMI
+# Перетворення дати
+df['ad_date'] = pd.to_datetime(df['ad_date'])
+
+# Створення поля ROMI
+df['romi'] = (df['total_value'] - df['total_spend']) / df['total_spend']
+
+# Фільтр за 2021 рік
+df_2021 = df[(df['ad_date'] >= '2021-01-01') & (df['ad_date'] <= '2021-12-31')]
+
+# Групування по днях
+daily_2021 = df_2021.groupby('ad_date')[['total_spend', 'total_value']].sum().reset_index()
+daily_2021['romi'] = (daily_2021['total_value'] - daily_2021['total_spend']) / daily_2021['total_spend']
+
+# Графік витрат
+plt.figure(figsize=(12, 5))
+plt.plot(daily_2021['ad_date'], daily_2021['total_spend'], label='Daily Spend')
+plt.plot(daily_2021['ad_date'], daily_2021['total_spend'].rolling(7).mean(), linestyle='--', label='7-day Avg')
+plt.title('Щоденні витрати на рекламу (2021)')
+plt.xlabel('Дата')
+plt.ylabel('Витрати')
+plt.legend()
+plt.show()
+
+# Графік ROMI
+plt.figure(figsize=(12, 5))
+plt.plot(daily_2021['ad_date'], daily_2021['romi'], label='Daily ROMI')
+plt.plot(daily_2021['ad_date'], daily_2021['romi'].rolling(7).mean(), linestyle='--', label='7-day Avg', color='orange')
+plt.title('Щоденний ROMI (2021)')
+plt.xlabel('Дата')
+plt.ylabel('ROMI')
+plt.legend()
+plt.show()
+# 2. Зроби групування даних за назвою кампанії побудуй два графіки:
+
+# Графік загальної суми витрат на рекламу в кожній з кампаній;
+# Загальний ROMI в кожній з кампаній.
+# Групування по кампаніях
+campaigns = df.groupby('campaign_name')[['total_spend', 'total_value']].sum().reset_index()
+campaigns['romi'] = (campaigns['total_value'] - campaigns['total_spend']) / campaigns['total_spend']
+
+# Графік витрат по кампаніях
+plt.figure(figsize=(10, 5))
+sns.barplot(data=campaigns, x='total_spend', y='campaign_name', palette='Blues_d')
+plt.title('Загальні витрати по кампаніях')
+plt.xlabel('Витрати')
+plt.ylabel('Кампанія')
+plt.show()
+
+# Графік ROMI по кампаніях
+plt.figure(figsize=(10, 5))
+sns.barplot(data=campaigns, x='romi', y='campaign_name', palette='coolwarm')
+plt.title('ROMI по кампаніях')
+plt.xlabel('ROMI')
+plt.ylabel('Кампанія')
+plt.show()
+# 3. За допомогою box plot визнач, яким був розкид щоденного ROMI в кожній кампаній (за назвою кампанії.)
+plt.figure(figsize=(12, 5))
+sns.boxplot(data=df, x='campaign_name', y='romi')
+plt.title('Розподіл ROMI по кампаніях')
+plt.xticks(rotation=45)
+plt.show()
+# 4. Побудуй гістограму з розподілом значень ROMI в таблиці facebook_ads_data.csv
+plt.figure(figsize=(10, 5))
+sns.histplot(df['romi'].dropna(), bins=30, kde=True)
+plt.title('Гістограма ROMI')
+plt.xlabel('ROMI')
+plt.ylabel('Кількість')
+plt.show()
+# 5. Побудуй теплову карту кореляції між усіма числовими показниками в таблиці facebook_ads_data.csv. 
+# Які показники мають найвищу та найнижчу кореляцію? 
+# З чим корелює "total_value"?
+plt.figure(figsize=(10, 8))
+corr = df.select_dtypes(include='number').corr()
+sns.heatmap(corr, annot=True, cmap='coolwarm', fmt='.2f')
+plt.title('Теплова карта кореляцій')
+plt.show()
+
+# Вивести найвищу і найнижчу кореляцію
+corr_pairs = corr.unstack().sort_values(ascending=False)
+corr_pairs = corr_pairs[corr_pairs < 1]
+print("Найвища кореляція:", corr_pairs.head(1))
+print("Найнижча кореляція:", corr_pairs.tail(1))
+
+# Кореляція total_value
+print("З чим корелює total_value:\n", corr['total_value'].sort_values(ascending=False))
+
+# 6. Побудуй точкову діаграму з лінійною регресією (для цього ти можеш використати функцію lmplot()), 
+# що побудована на даних з "total_spend" та "total_value" щоб візуалізувати звʼязок між цими величинами.
+sns.lmplot(data=df, x='total_spend', y='total_value', height=6, aspect=1.5)
+plt.title('Звʼязок між витратами та доходом')
+plt.show()
+
+
+
