@@ -1,0 +1,73 @@
+import pandas as pd
+import numpy as np
+df = pd.read_csv("Downloads/survey_results_public.csv")
+schema = pd.read_csv("Downloads/survey_results_schema.csv")
+
+print(df.head())
+print(schema.head())
+#1. Скільки респондентів пройшли опитування?
+total_respondents = df.shape[0]
+
+print("Кількість респондентів, які пройшли опитування:", total_respondents)
+#2. Скільки респондентів відповіли на всі запитання?
+relevant_questions = set(schema["qname"].dropna())
+available_columns = set(df.columns)
+
+columns_to_check = list(relevant_questions & available_columns)
+
+df_full = df[columns_to_check]
+fully_answered = df_full.dropna()
+
+print("Респондентів, які відповіли на всі запитання:", fully_answered.shape[0])
+#3. Які значення мір центральної тенденції для досвіду (WorkExp) респондентів?
+mean_exp = df["WorkExp"].mean()
+median_exp = df["WorkExp"].median()
+mode_exp = df["WorkExp"].mode()[0]
+
+print(f"Середній досвід (mean): {mean_exp:.2f} років")
+print(f"Медіана (median): {median_exp} років")
+print(f"Мода (mode): {mode_exp} років")
+#4. Скільки респондентів працює віддалено?
+df[df.RemoteWork == "Remote"].shape[0]
+
+print("Кількість респондентів, які працюють повністю віддалено:", df[df.RemoteWork == "Remote"].shape[0])
+#5. Який відсоток респондентів програмує на Python?
+python_users = df['LanguageHaveWorkedWith'].str.lower().str.contains('python', na=False)
+total_respondents = df['ResponseId'].nunique()
+num_python_users = df[python_users].shape[0]
+percentage = num_python_users / total_respondents * 100
+
+print(f"Відсоток респондентів, які програмують на Python: {percentage:.2f}%")
+#6. Скільки респондентів навчалося програмувати за допомогою онлайн курсів?
+online_learners = df['LearnCode'].str.contains("Online Courses", na=False)
+unique_online_learners = df[online_learners]['ResponseId'].nunique()
+
+print(f"Кількість унікальних респондентів, які навчалися онлайн: {unique_online_learners}")
+#7. Серед респондентів що програмують на Python в групуванні по країнам, яка середня та медіанна сума компенсації (ConvertedCompYearly) в кожній країні?
+python_users = df['LanguageHaveWorkedWith'].str.lower().str.contains('python', na=False)
+df_python = df[python_users]
+df_python_cleaned = df_python.dropna(subset=['ConvertedCompYearly', 'Country'])
+compensation_stats = df_python_cleaned.groupby('Country').agg({'ConvertedCompYearly' : ['mean', 'median']})
+
+print(compensation_stats)
+#8. Які рівні освіти мають 5 респондентів з найбільшою компенсацією?
+df_cleaned = df.dropna(subset=['ConvertedCompYearly', 'EdLevel'])
+top5 = df_cleaned.sort_values(by='ConvertedCompYearly', ascending=False).head(5)
+
+print(top5[['ConvertedCompYearly', 'EdLevel']])
+#Бонусні запитання:
+
+#1. В кожній віковій категорії, який відсоток респондентів програмує на Python?
+df['UsesPython'] = df['LanguageHaveWorkedWith'].str.contains('Python', na=False)
+df_age = df.dropna(subset=['Age'])
+age_group = df_age.groupby('Age')['UsesPython'].mean() * 100
+
+print(age_group.sort_index())
+#2. Серед респондентів що знаходяться в 75 перцентилі за компенсацією середнього і працюють віддалено, які індустрії є найрозповсюдженішими?
+df_clean = df.dropna(subset=['ConvertedCompYearly', 'RemoteWork', 'Industry'])
+remote_df = df_clean[df_clean['RemoteWork'].str.lower().str.contains("remote")]
+percentile_75 = remote_df['ConvertedCompYearly'].quantile(0.75)
+top_earners = remote_df[remote_df['ConvertedCompYearly'] >= percentile_75]
+industry_counts = top_earners['Industry'].value_counts()
+
+print(industry_counts.head(10))
